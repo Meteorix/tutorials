@@ -225,7 +225,7 @@ with open("../_static/img/sample_file.jpeg", 'rb') as f:
 # Integrating the model in our API Server
 # ---------------------------------------
 #
-# In this part we will add our model to our Flask API server. Since
+# In this final part we will add our model to our Flask API server. Since
 # our API server is supposed to take an image file, we will update our ``predict``
 # method to read files from the requests:
 #
@@ -335,59 +335,27 @@ with open("../_static/img/sample_file.jpeg", 'rb') as f:
 #    ServiceStreamer is a middleware for web service of machine learning applications. Queue requests from users are 
 #    sampled into mini-batches. ServiceStreamer can significantly enhance the overall performance of the web server by 
 #    improving GPU utilization.
-#
-# Install Service-Streamer by running the following command:
-#
-# ::
-#
-#     $ pip install service_streamer 
-# 
-# In this final part, we will add Service-Streamer to our Flask API server for boosting the overall performance of the 
-# system. All source code and benchmark scripts are here on [`Github <https://github.com/ShannonAI/service-streamer/tree/master/example_vision>`_].
-# 
-# First define `batch_prediction` function to handle batched images.
-# 
-# .. code-block:: python
-# 
-#   def batch_prediction(image_bytes_batch):
-#       image_tensors = [transform_image(image_bytes=image_bytes) for image_bytes in image_bytes_batch]
-#       tensor = torch.cat(image_tensors).to(device)
-#       outputs = model.forward(tensor)
-#       _, y_hat = outputs.max(1)
-#       predicted_ids = y_hat.tolist()
-#       return [imagenet_class_index[str(i)] for i in predicted_ids]
-#
 
-#######################################################################
-# Then update ``predict`` method and utilize service-streamer from user requests.   
-#
-# .. code-block:: python
-# 
-#   from flask import jsonify, request
-#   from model import batch_prediction
-#   from service_streamer import ThreadedStreamer
-#
-#   streamer = ThreadedStreamer(batch_prediction, batch_size=64)
-# 
-#   @app.route('/predict', methods=['POST'])
-#   def predict():
-#       if request.method == 'POST':
-#           file = request.files['file']
-#           img_bytes = file.read()
-#           class_id, class_name = streamer.predict([img_bytes])[0]
-#           return jsonify({'class_id': class_id, 'class_name': class_name})
-
-#######################################################################
-# Start your server as before. And also you can do api benchmark test with `wrk`:
-#
-# ::
-#
-#     $ ./wrk -t 2 -c 128 -d 20s --timeout=20s -s file.lua http://127.0.0.1:5005/predict
 
 
 ######################################################################
 # Next steps
 # --------------
+#
+# Before putting the server into production, we need to solve two issues:
+# 
+# - One request is served at a time, it is much slower compared to a local batch prediction 
+# - It will cause CUDA out-of-memory error on GPU when there are large concurrent requests
+#
+# We can cache user requests in batches and schedule the prediction process. 
+# Follow `service-streamer tutorial <https://github.com/ShannonAI/service-streamer/wiki/Vision-Recognition-Service-with-Flask-and-service-streamer>`_
+# you will solve these issues with a few lines of code.
+#
+# .. Note ::
+#    `service-streamer` <https://github.com/ShannonAI/service-streamer>`_ is a middleware for web service
+#    of machine learning applications. Queued requests from users are sampled into mini-batches. Service-streamer 
+#    can significantly enhance the overall performance of the web server by improving GPU utilization.
+#
 #
 # The server we wrote is quite trivial and and may not do everything
 # you need for your production application. So, here are some things you
